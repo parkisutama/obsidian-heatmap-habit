@@ -1,99 +1,116 @@
-import {App, Editor, MarkdownView, Modal, Notice, Plugin} from 'obsidian';
-import {DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab} from "./settings";
+import { MarkdownPostProcessorContext, Plugin } from 'obsidian';
+import { HeatmapHabitSettings, DEFAULT_SETTINGS, HeatmapSettingTab } from './settings';
+import { HeatmapDataProcessor } from './utils/heatmapProcessor';
+import { HeatmapRenderer } from './ui/heatmapRenderer';
+import { HeatmapConfig } from './types';
 
-// Remember to rename these classes and interfaces!
-
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class HeatmapPlugin extends Plugin {
+	settings: HeatmapHabitSettings;
+	private dataProcessor: HeatmapDataProcessor;
+	private renderer: HeatmapRenderer;
 
 	async onload() {
 		await this.loadSettings();
 
-		// This creates an icon in the left ribbon.
-		this.addRibbonIcon('dice', 'Sample', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
+		this.dataProcessor = new HeatmapDataProcessor(this.app.vault);
+		this.renderer = new HeatmapRenderer(this.app, this);
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status bar text');
-
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-modal-simple',
-			name: 'Open modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
+		// Register markdown code block processor
+		this.registerMarkdownCodeBlockProcessor(
+			'heatmap-habit',
+			async (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
+				await this.processHeatmapCodeBlock(source, el, ctx);
 			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'replace-selected',
-			name: 'Replace selected content',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				editor.replaceSelection('Sample editor command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-modal-complex',
-			name: 'Open modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
+		);
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-				return false;
-			}
-		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
-
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			new Notice("Click");
-		});
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-
+		// Add settings tab
+		this.addSettingTab(new HeatmapSettingTab(this.app, this));
 	}
 
-	onunload() {
+	async onunload() {
+		// Cleanup if needed
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
 	}
-}
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
+	getDataProcessor(): HeatmapDataProcessor {
+		return this.dataProcessor;
 	}
 
-	onOpen() {
-		let {contentEl} = this;
-		contentEl.setText('Woah!');
+	/**
+	 * Process heatmap code block
+	 */
+	private async processHeatmapCodeBlock(
+		source: string,
+		el: HTMLElement,
+		ctx: MarkdownPostProcessorContext
+	): Promise<void> {
+		try {
+			// Parse configuration from code block
+			const config = this.parseConfig(source);
+
+			// Get files based on search path
+			let files = this.app.vault.getMarkdownFiles();
+			if (config.search_path) {
+				files = files.filter(f => f.path.includes(config.search_path!));
+			}
+
+			// Process habit notes
+			const aggregation = config.aggregation || this.settings.aggregationMethod;
+			const dayDataMap = await this.dataProcessor.processHabitNotes(
+				files,
+				config.value_field,
+				aggregation
+			);
+
+			// Render heatmap
+			await this.renderer.render(el, config, dayDataMap);
+
+		} catch (error) {
+			el.createDiv({
+				cls: 'heatmap-error',
+				text: `Error rendering heatmap: ${error.message}`
+			});
+			console.error('Heatmap rendering error:', error);
+		}
 	}
 
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
+	/**
+	 * Parse configuration from code block content
+	 */
+	private parseConfig(source: string): HeatmapConfig {
+		const lines = source.trim().split('\n');
+		const config: any = {
+			type: 'yearly',
+			date_field: 'date',
+			value_field: 'value'
+		};
+
+		for (const line of lines) {
+			const trimmed = line.trim();
+			if (!trimmed || trimmed.startsWith('#')) continue;
+
+			const colonIndex = trimmed.indexOf(':');
+			if (colonIndex === -1) continue;
+
+			const key = trimmed.substring(0, colonIndex).trim();
+			let value = trimmed.substring(colonIndex + 1).trim();
+
+			// Remove quotes
+			if ((value.startsWith('"') && value.endsWith('"')) ||
+				(value.startsWith("'") && value.endsWith("'"))) {
+				value = value.slice(1, -1);
+			}
+
+			config[key] = value;
+		}
+
+		return config as HeatmapConfig;
 	}
 }

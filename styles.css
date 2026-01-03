@@ -1,8 +1,436 @@
-/*
+/* --- GLOBAL CONTAINER --- */
+.heatmap-habit-plugin {
+	--sh-cell-size: 10px;
+	--sh-cell-gap: 2px;
+	--sh-cell-radius: 2px;
+	--sh-label-color: var(--text-muted);
+	--sh-bg-empty: var(--background-modifier-border);
+	font-family: var(--font-interface);
+	display: inline-block;
+	background: transparent;
+	padding: 10px;
+}
 
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
+/* --- SHARED CELLS --- */
+.sh-day-cell {
+	width: var(--sh-cell-size);
+	height: var(--sh-cell-size);
+	border-radius: var(--sh-cell-radius);
+	background-color: var(--sh-bg-empty);
+	transition: transform 0.1s ease;
+	flex-shrink: 0;
+}
 
-If your plugin does not need CSS, delete this file.
+.sh-day-cell:hover {
+	transform: scale(1.4);
+	z-index: 10;
+	border: 1px solid var(--text-normal);
+}
 
-*/
+.sh-zero-data {
+	background-color: transparent !important;
+	border: 1px solid var(--text-muted);
+	opacity: 0.3;
+}
+
+.sh-empty-data {
+	opacity: 0.1;
+}
+
+.sh-empty {
+	background-color: transparent !important;
+	pointer-events: none;
+}
+
+.sh-empty-spacer {
+	background-color: transparent !important;
+	pointer-events: none;
+}
+
+/* --- YEARLY VIEW LAYOUT --- */
+
+/* 1. Month Headers (Top Row) */
+.sh-month-header-row {
+	display: flex !important;
+	flex-direction: row !important;
+	height: 15px;
+	margin-bottom: 4px;
+	align-items: flex-end;
+}
+
+.sh-month-header-spacer {
+	width: 28px !important;
+	flex-shrink: 0 !important;
+}
+
+.sh-month-header-cell {
+	width: 12px;
+	font-size: 10px !important;
+	line-height: 12px !important;
+	color: var(--sh-label-color);
+	white-space: nowrap;
+	overflow: visible;
+	text-align: left;
+	display: flex;
+	align-items: flex-end;
+	font-weight: normal;
+}
+
+.sh-header-visible {
+	font-weight: bold !important;
+	z-index: 5;
+}
+
+/* 2. Main Body (Labels + Grid) */
+.sh-body-row {
+	display: flex !important;
+	flex-direction: row !important;
+	align-items: flex-start !important;
+	width: max-content;
+}
+
+/* Left Column: Labels */
+.sh-day-labels-col {
+	display: flex !important;
+	flex-direction: column !important;
+	gap: 0 !important;
+	margin-top: 0px;
+	margin-right: 4px;
+	padding-top: 0px;
+	width: 24px !important;
+	flex-shrink: 0;
+}
+
+.sh-day-label {
+	height: 10px !important;
+	line-height: 10px !important;
+	margin-bottom: 2px !important;
+	font-size: 9px !important;
+	color: var(--sh-label-color);
+	text-align: right;
+	width: 100%;
+	margin-top: 0 !important;
+	padding: 0 !important;
+	border: none !important;
+	font-weight: normal !important;
+}
+
+/* Right Column: Grid */
+.sh-year-grid {
+	display: flex !important;
+	flex-direction: row !important;
+	gap: 2px !important;
+}
+
+.sh-week-col {
+	display: flex !important;
+	flex-direction: column !important;
+	gap: 2px !important;
+	width: 10px;
+}
+
+/* --- MONTHLY HEATMAP (Minimalist Pixel View) --- */
+.sh-layout-monthly-pixels {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 20px;
+}
+
+.sh-pixel-month-card {
+	display: flex;
+	flex-direction: column;
+}
+
+.sh-month-title-row {
+	margin-bottom: 4px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sh-pixel-month-title {
+	font-size: 12px !important;
+	font-weight: bold;
+	color: var(--text-normal);
+}
+
+.sh-month-day-labels-row {
+	display: grid;
+	grid-template-columns: 20px repeat(7, 10px);
+	gap: 2px;
+	margin-bottom: 2px;
+}
+
+.sh-day-header-spacer {
+	width: 20px;
+}
+
+.sh-pixel-header {
+	width: 10px;
+	text-align: center;
+	font-size: 8px !important;
+	color: var(--sh-label-color);
+	line-height: 10px;
+}
+
+.sh-pixel-grid-numbered {
+	display: grid;
+	grid-template-columns: 20px repeat(7, 10px);
+	gap: 2px;
+	align-items: center;
+}
+
+.sh-week-label {
+	font-size: 8px !important;
+	color: var(--sh-label-color);
+	text-align: left;
+	height: 10px;
+	line-height: 10px;
+	opacity: 0.7;
+}
+
+/* --- HOVER POPUP --- */
+.heatmap-hover-popup {
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+	z-index: 1000;
+	min-width: 200px;
+	max-width: 300px;
+	pointer-events: none;
+}
+
+.popup-date {
+	font-weight: bold;
+	margin-bottom: 8px;
+	color: var(--text-normal);
+	font-size: 13px;
+}
+
+.popup-value {
+	font-size: 1.1em;
+	margin-bottom: 8px;
+	color: var(--interactive-accent);
+	font-weight: 600;
+}
+
+.popup-count {
+	font-size: 0.9em;
+	color: var(--text-muted);
+	margin-bottom: 8px;
+}
+
+.popup-entries {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	max-height: 150px;
+	overflow-y: auto;
+}
+
+.popup-entries li {
+	display: flex;
+	justify-content: space-between;
+	padding: 4px 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.popup-entries li:last-child {
+	border-bottom: none;
+}
+
+.entry-name {
+	color: var(--text-normal);
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 12px;
+}
+
+.entry-value {
+	color: var(--text-muted);
+	margin-left: 8px;
+	font-weight: bold;
+	font-size: 12px;
+}
+
+/* --- ERROR STATE --- */
+.heatmap-error {
+	color: var(--text-error);
+	padding: 10px;
+	background: var(--background-secondary);
+	border-radius: 4px;
+	border: 1px solid var(--text-error);
+}
+
+/* --- SHARED CELLS --- */
+.sh-day-cell {
+	width: var(--sh-cell-size);
+	height: var(--sh-cell-size);
+	border-radius: var(--sh-cell-radius);
+	background-color: var(--sh-bg-empty);
+	transition: transform 0.1s ease;
+	flex-shrink: 0; /* Prevent cells from squishing */
+}
+.sh-day-cell:hover {
+	transform: scale(1.4);
+	z-index: 10;
+	border: 1px solid var(--text-normal);
+}
+.sh-zero-data {
+	background-color: transparent !important;
+	border: 1px solid var(--text-muted);
+	opacity: 0.3;
+}
+.sh-empty-data {
+	opacity: 0.1;
+}
+.sh-empty-spacer {
+	background-color: transparent !important;
+	pointer-events: none;
+}
+
+/* --- YEARLY VIEW LAYOUT --- */
+
+/* 1. Month Headers (Top Row) */
+.sh-month-header-row {
+	display: flex !important;
+	flex-direction: row !important;
+	height: 15px;
+	margin-bottom: 4px;
+	align-items: flex-end;
+}
+
+/* Spacer for the labels column */
+.sh-month-header-spacer {
+	width: 28px !important; /* Fixed width matching label col */
+	flex-shrink: 0 !important;
+}
+
+/* Month Name Cells */
+.sh-month-header-cell {
+	width: 12px; /* Week width */
+	font-size: 10px !important; /* Force tiny text */
+	line-height: 12px !important;
+	color: var(--sh-label-color);
+	white-space: nowrap;
+	overflow: visible;
+	text-align: left;
+	display: flex;
+	align-items: flex-end;
+	font-weight: normal;
+}
+.sh-header-visible {
+	font-weight: bold !important;
+	z-index: 5;
+}
+
+/* 2. Main Body (Labels + Grid) */
+.sh-body-row {
+	display: flex !important;
+	flex-direction: row !important; /* Force side-by-side */
+	align-items: flex-start !important;
+	width: max-content; /* Ensure it doesn't wrap */
+}
+
+/* Left Column: Labels */
+.sh-day-labels-col {
+	display: flex !important;
+	flex-direction: column !important;
+	gap: 0 !important; /* We use margin-bottom on items instead */
+	margin-top: 0px;
+	margin-right: 4px;
+	padding-top: 0px;
+	width: 24px !important; /* Fixed width to prevent exploding */
+	flex-shrink: 0;
+}
+
+/* The Label Text Itself - STRICT STYLING */
+.sh-day-label {
+	height: 10px !important; /* Match cell height */
+	line-height: 10px !important; /* Match cell height */
+	margin-bottom: 2px !important; /* Match cell gap */
+	font-size: 9px !important; /* Force tiny font */
+	color: var(--sh-label-color);
+	text-align: right;
+	width: 100%;
+
+	/* Reset generic styles that might cause the huge text */
+	margin-top: 0 !important;
+	padding: 0 !important;
+	border: none !important;
+	font-weight: normal !important;
+}
+
+/* Right Column: Grid */
+.sh-year-grid {
+	display: flex !important;
+	flex-direction: row !important;
+	gap: 2px !important;
+}
+
+.sh-week-col {
+	display: flex !important;
+	flex-direction: column !important;
+	gap: 2px !important;
+	width: 10px;
+}
+
+/* --- MONTHLY PIXEL VIEW --- */
+.sh-layout-monthly-pixels {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 20px;
+}
+
+.sh-pixel-month-card {
+	display: flex;
+	flex-direction: column;
+}
+
+.sh-month-header-flex {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-end;
+	margin-bottom: 4px;
+	padding-bottom: 4px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.sh-pixel-month-title {
+	font-size: 12px !important;
+	font-weight: bold;
+	color: var(--text-normal);
+}
+
+.sh-month-day-labels {
+	display: flex;
+	gap: 2px;
+}
+.sh-day-header-spacer {
+	width: 20px;
+}
+.sh-pixel-header {
+	width: 10px;
+	text-align: center;
+	font-size: 8px !important;
+	color: var(--sh-label-color);
+}
+
+.sh-pixel-grid-numbered {
+	display: grid;
+	grid-template-columns: 20px repeat(7, 10px);
+	gap: 2px;
+	align-items: center;
+}
+
+.sh-week-label {
+	font-size: 8px !important;
+	color: var(--sh-label-color);
+	text-align: left;
+	height: 10px;
+	line-height: 10px;
+	opacity: 0.7;
+}
