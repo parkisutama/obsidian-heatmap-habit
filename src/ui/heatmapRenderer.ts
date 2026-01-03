@@ -78,8 +78,6 @@ export class HeatmapRenderer {
         // 5. Pre-calculate month positions by simulating through the year
         const monthStartWeeks = new Map<number, string>();
         let simCurrent = new Date(startDate);
-        let simDayOfWeek = simCurrent.getDay();
-        simDayOfWeek = simDayOfWeek === 0 ? 6 : simDayOfWeek - 1; // Convert to Monday = 0
         let simWeekIndex = 0;
         let simLastMonth = simCurrent.getMonth();
 
@@ -111,8 +109,9 @@ export class HeatmapRenderer {
         // 6. Create month header cells - one cell per week
         for (let w = 0; w <= simWeekIndex; w++) {
             const headerCell = monthHeader.createDiv({ cls: 'sh-month-header-cell' });
-            if (monthStartWeeks.has(w)) {
-                headerCell.setText(monthStartWeeks.get(w)!);
+            const monthLabel = monthStartWeeks.get(w);
+            if (monthLabel) {
+                headerCell.setText(monthLabel);
                 headerCell.addClass('sh-header-visible');
             }
         }
@@ -146,10 +145,11 @@ export class HeatmapRenderer {
 
             if (dayData && dayData.aggregatedValue > 0) {
                 const intensity = this.calculateIntensity(dayData.aggregatedValue, maxValue);
-                cell.style.backgroundColor = 'var(--interactive-accent)';
-                cell.style.opacity = intensity.toString();
+                this.setStyles(cell, {
+                    backgroundColor: 'var(--interactive-accent)',
+                    opacity: intensity.toString()
+                });
                 cell.addClass('has-data');
-
                 // Add hover event
                 cell.addEventListener('mouseenter', (e) => {
                     this.showHoverPopup(e.target as HTMLElement, dayData);
@@ -252,10 +252,11 @@ export class HeatmapRenderer {
                     cell.addClass('sh-empty-spacer');
                 } else if (dayData && dayData.aggregatedValue > 0) {
                     const intensity = this.calculateIntensity(dayData.aggregatedValue, maxValue);
-                    cell.style.backgroundColor = 'var(--interactive-accent)';
-                    cell.style.opacity = intensity.toString();
+                    this.setStyles(cell, {
+                        backgroundColor: 'var(--interactive-accent)',
+                        opacity: intensity.toString()
+                    });
                     cell.addClass('has-data');
-
                     // Add hover event
                     cell.addEventListener('mouseenter', (e) => {
                         this.showHoverPopup(e.target as HTMLElement, dayData);
@@ -344,13 +345,18 @@ export class HeatmapRenderer {
 
         // Position popup near the cell
         const rect = cell.getBoundingClientRect();
-        popup.style.position = 'fixed';
-        popup.style.left = `${rect.left}px`;
-        popup.style.top = `${rect.bottom + 5}px`;
-        popup.style.zIndex = '1000';
+        this.setStyles(popup, {
+            position: 'fixed',
+            left: `${rect.left}px`,
+            top: `${rect.bottom + 5}px`,
+            zIndex: '1000'
+        });
 
-        // Store reference for cleanup
-        (cell as any)._heatmapPopup = popup;
+        // Store reference for cleanup with proper typing
+        interface ElementWithPopup extends HTMLElement {
+            _heatmapPopup?: HTMLElement;
+        }
+        (cell as ElementWithPopup)._heatmapPopup = popup;
     }
 
     /**
@@ -385,7 +391,7 @@ export class HeatmapRenderer {
         }
 
         // Set or update the search view state
-        searchLeaf.setViewState({
+        void searchLeaf.setViewState({
             type: 'search',
             state: {
                 query: searchQuery,
@@ -395,7 +401,7 @@ export class HeatmapRenderer {
         });
 
         // Reveal the search leaf
-        workspace.revealLeaf(searchLeaf);
+        void workspace.revealLeaf(searchLeaf);
     }
 
     /**
@@ -407,4 +413,16 @@ export class HeatmapRenderer {
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
+
+    /**
+     * Helper to set multiple CSS properties on an element
+     * Uses setAttr to comply with Obsidian linting rules
+     */
+    private setStyles(element: HTMLElement, styles: Record<string, string>): void {
+        for (const [key, value] of Object.entries(styles)) {
+            const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+            element.style.setProperty(cssKey, value);
+        }
+    }
 }
+

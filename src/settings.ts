@@ -28,13 +28,11 @@ export class HeatmapSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		containerEl.createEl('h2', { text: 'Heatmap habit settings' });
-
 		new Setting(containerEl)
 			.setName('Value field')
 			.setDesc('The field name to extract values from (e.g., "value", "score", "duration")')
 			.addText(text => text
-				.setPlaceholder('value')
+				.setPlaceholder('Value')
 				.setValue(this.plugin.settings.valueField)
 				.onChange(async (value) => {
 					this.plugin.settings.valueField = value;

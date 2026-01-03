@@ -8,8 +8,13 @@ export default class HeatmapPlugin extends Plugin {
 	settings: HeatmapHabitSettings;
 	private dataProcessor: HeatmapDataProcessor;
 	private renderer: HeatmapRenderer;
+	private activeBlocks: Map<HTMLElement, string> = new Map();
 
-	async onload() {
+	onload() {
+		void this.initializePlugin();
+	}
+
+	private async initializePlugin() {
 		await this.loadSettings();
 
 		this.dataProcessor = new HeatmapDataProcessor(this.app.vault);
@@ -19,6 +24,7 @@ export default class HeatmapPlugin extends Plugin {
 		this.registerMarkdownCodeBlockProcessor(
 			'heatmap-habit',
 			async (source: string, el: HTMLElement, ctx: MarkdownPostProcessorContext) => {
+				this.activeBlocks.set(el, source);
 				await this.processHeatmapCodeBlock(source, el, ctx);
 			}
 		);
@@ -27,12 +33,13 @@ export default class HeatmapPlugin extends Plugin {
 		this.addSettingTab(new HeatmapSettingTab(this.app, this));
 	}
 
-	async onunload() {
-		// Cleanup if needed
+	onunload() {
+		this.activeBlocks.clear();
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		const data = await this.loadData() as Partial<HeatmapHabitSettings> | null;
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, data || {});
 	}
 
 	async saveSettings() {
@@ -58,7 +65,7 @@ export default class HeatmapPlugin extends Plugin {
 			// Get files based on search path
 			let files = this.app.vault.getMarkdownFiles();
 			if (config.search_path) {
-				files = files.filter(f => f.path.includes(config.search_path!));
+				files = files.filter(f => f.path.includes(config.search_path || ''));
 			}
 
 			// Process habit notes
@@ -73,9 +80,10 @@ export default class HeatmapPlugin extends Plugin {
 			await this.renderer.render(el, config, dayDataMap);
 
 		} catch (error) {
+			const errorMessage = error instanceof Error ? error.message : String(error);
 			el.createDiv({
 				cls: 'heatmap-error',
-				text: `Error rendering heatmap: ${error.message}`
+				text: `Error rendering heatmap: ${errorMessage}`
 			});
 			console.error('Heatmap rendering error:', error);
 		}
@@ -86,7 +94,7 @@ export default class HeatmapPlugin extends Plugin {
 	 */
 	private parseConfig(source: string): HeatmapConfig {
 		const lines = source.trim().split('\n');
-		const config: any = {
+		const config: Record<string, unknown> = {
 			type: 'yearly',
 			date_field: 'date',
 			value_field: 'value'
@@ -108,9 +116,37 @@ export default class HeatmapPlugin extends Plugin {
 				value = value.slice(1, -1);
 			}
 
-			config[key] = value;
+			if (key) {
+				config[key] = value;
+			}
 		}
 
-		return config as HeatmapConfig;
+		return config as unknown as HeatmapConfig;
+	}
+
+	/**
+	 * Refresh all active heatmaps when settings change
+	 */
+	async refreshHeatmap(): Promise<void> {
+		for (const [el, source] of this.activeBlocks) {
+			try {
+				const config = this.parseConfig(source);
+				let files = this.app.vault.getMarkdownFiles();
+				if (config.search_path) {
+					files = files.filter(f => f.path.includes(config.search_path || ''));
+				}
+
+				const aggregation = config.aggregation || this.settings.aggregationMethod;
+				const dayDataMap = await this.dataProcessor.processHabitNotes(
+					files,
+					config.value_field,
+					aggregation
+				);
+
+				await this.renderer.render(el, config, dayDataMap);
+			} catch (error) {
+				console.error('Error refreshing heatmap:', error);
+			}
+		}
 	}
 }

@@ -100,12 +100,14 @@ export class HeatmapDataProcessor {
                 });
             }
 
-            const dayData = dayDataMap.get(date)!;
-            dayData.entries.push(entry);
+            const dayData = dayDataMap.get(date);
+            if (dayData) {
+                dayData.entries.push(entry);
+            }
         }
 
         // Calculate aggregated values
-        for (const [date, dayData] of dayDataMap) {
+        for (const [, dayData] of dayDataMap) {
             dayData.aggregatedValue = this.aggregateEntries(
                 dayData.entries,
                 aggregationMethod
